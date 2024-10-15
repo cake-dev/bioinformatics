@@ -1,0 +1,11 @@
+0.399
+--------
+A	B	C	D	E
+--------
+EDB-DDC-B
+EDD-DDCCB
+-EDABDCC-
+EDDA---C-
+EDDDDD-CB
+--DAD-C-B
+E-DEDCCCB
