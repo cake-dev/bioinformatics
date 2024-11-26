@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>De Bruijn Graph Visualizer</title>
+    <style>
+        .container {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        #graph {
+            display: inline-block;
+            width: calc(100% - 250px);
+        }
+
+        #kmer-table {
+            display: inline-block;
+            vertical-align: top;
+            margin-left: 20px;
+        }
+
+        form {
+            margin-bottom: 20px;
+        }
+
+        input, textarea {
+            width: 300px;
+            padding: 5px;
+        }
+
+        button {
+            padding: 5px 15px;
+        }
+
+        /* Table styles */
+        table {
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            border: 1px solid #ccc;
+            padding: 5px 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f5f5f5;
+        }
+    </style>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h3>De Bruijn Graph Visualization</h3>
+        <form id="graphForm">
+            <label for="kValue">Enter k:</label>
+            <input type="number" id="kValue" name="kValue" min="1" required>
+            <br><br>
+            <label for="dnaString">Enter DNA String:</label>
+            <textarea id="dnaString" name="dnaString" rows="4" required></textarea>
+            <br><br>
+            <button type="submit">Generate Graph</button>
+        </form>
+        <div id="graph"></div>
+    </div>
+    <script src="visualizer2.js"></script>
+</body>
+</html>

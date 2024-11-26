@@ -13,7 +13,7 @@ document.getElementById("graphForm").addEventListener("submit", function (event)
     }
 
     const { nodes, links, kmers } = buildDeBruijnGraph(dna, k);
-    renderGraph(nodes, links);
+    renderGraph(nodes, links, k, dna);
     renderKmerTable(kmers);
 });
 
@@ -42,7 +42,8 @@ function buildDeBruijnGraph(sequence, k) {
         links.push({
             source: prefix,
             target: suffix,
-            transition: transition
+            transition: transition,
+            originalIndex: i  // Store the original position in the sequence
         });
     }
 
@@ -52,6 +53,98 @@ function buildDeBruijnGraph(sequence, k) {
     });
 
     return { nodes: d3.values(nodes), links, kmers };
+}
+
+function findPathToMatch(nodes, links, originalString, k) {
+    const adj = {};
+    nodes.forEach(node => {
+        adj[node.name] = [];
+    });
+
+    // Sort links by their original index to follow the sequence order
+    links.forEach(link => {
+        adj[link.source.name].push({
+            target: link.target.name,
+            transition: link.transition,
+            originalIndex: link.originalIndex,
+            used: false
+        });
+    });
+
+    for (let node in adj) {
+        adj[node].sort((a, b) => a.originalIndex - b.originalIndex);
+    }
+
+    const startNode = originalString.substring(0, k - 1); // Start at the first k-1 characters
+    const path = [];
+    let currentNode = startNode;
+
+    while (true) {
+        const edges = adj[currentNode];
+        if (!edges || edges.length === 0) break;
+
+        // Find the next unused edge
+        const nextEdge = edges.find(edge => !edge.used);
+        if (!nextEdge) break;
+
+        nextEdge.used = true;
+        path.push({
+            from: currentNode,
+            to: nextEdge.target,
+            transition: nextEdge.transition
+        });
+
+        currentNode = nextEdge.target;
+    }
+
+    return path;
+}
+
+
+function findEulerianPath(nodes, links) {
+    // Create adjacency list
+    const adj = {};
+    nodes.forEach(node => {
+        adj[node.name] = [];
+    });
+    
+    links.forEach(link => {
+        adj[link.source.name].push({
+            target: link.target.name,
+            transition: link.transition
+        });
+    });
+
+    // Find start node (node with one more outgoing edge)
+    let startNode = nodes[0].name;
+    for (let node in adj) {
+        if (adj[node].length > 0) {
+            startNode = node;
+            break;
+        }
+    }
+
+    // Perform Hierholzer's algorithm
+    const path = [];
+    const stack = [startNode];
+    
+    while (stack.length > 0) {
+        const currentNode = stack[stack.length - 1];
+        
+        if (adj[currentNode].length > 0) {
+            const nextEdge = adj[currentNode].pop();
+            stack.push(nextEdge.target);
+            path.push({
+                from: currentNode,
+                to: nextEdge.target,
+                transition: nextEdge.transition
+            });
+        } else {
+            stack.pop();
+        }
+    }
+
+    return path;
 }
 
 function renderKmerTable(kmers) {
@@ -90,10 +183,49 @@ function renderKmerTable(kmers) {
     document.querySelector('.container').appendChild(tableContainer);
 }
 
-function renderGraph(graphNodes, graphLinks) {
+function renderGraph(graphNodes, graphLinks, k, originalString) {
+    // Create reconstruction display and controls
+    const controlsContainer = document.createElement('div');
+    controlsContainer.style.cssText = `
+        padding: 20px;
+        margin: 20px 0;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    `;
+    
+    const reconstructionDisplay = document.createElement('div');
+    reconstructionDisplay.id = 'reconstruction-display';
+    reconstructionDisplay.style.cssText = `
+        flex-grow: 1;
+        padding: 20px;
+        font-family: monospace;
+        font-size: 18px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+        min-height: 50px;
+    `;
+
+    const startButton = document.createElement('button');
+    startButton.textContent = 'Start Animation';
+    startButton.style.cssText = `
+        padding: 10px 20px;
+        background: #2ecc71;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+    `;
+
+    controlsContainer.appendChild(reconstructionDisplay);
+    controlsContainer.appendChild(startButton);
+    document.getElementById("graph").parentNode.insertBefore(controlsContainer, document.getElementById("graph"));
+
     const width = DEFAULT_WIDTH;
     const height = DEFAULT_HEIGHT;
-    const margin = 40; // Increased margin for better spacing
+    const margin = 40;
 
     // Clear existing graph
     d3.select("#graph").html("");
@@ -118,7 +250,7 @@ function renderGraph(graphNodes, graphLinks) {
         .attr("offset", "100%")
         .attr("stop-color", "#f0f0f0");
 
-    // Arrow marker definition with improved styling
+    // Arrow marker definition
     svg.append("defs").selectAll("marker")
         .data(["arrow"])
         .enter()
@@ -134,7 +266,6 @@ function renderGraph(graphNodes, graphLinks) {
         .attr("d", "M0,-5L10,0L0,5")
         .style("fill", "#666");
 
-    // Create force simulation with bounds
     const simulation = d3.forceSimulation(graphNodes)
         .force("link", d3.forceLink(graphLinks)
             .id(d => d.name)
@@ -145,19 +276,19 @@ function renderGraph(graphNodes, graphLinks) {
         .force("x", d3.forceX(width / 2).strength(0.1))
         .force("y", d3.forceY(height / 2).strength(0.1));
 
-    // Create paths for edges with improved styling
+    // Create paths for edges
     const path = svg.selectAll(".link")
         .data(graphLinks)
         .enter()
         .append("path")
         .attr("id", (d, i) => `link${i}`)
-        .attr("class", d => (d.target.name.includes('$') ? "link auxiliary" : "link"))
+        .attr("class", "link")
         .attr("marker-end", "url(#arrow)")
         .style("stroke", "#666")
         .style("stroke-width", 1.5);
 
-    // Add edge labels with improved styling
-    svg.selectAll(".edge-label")
+    // Add edge labels
+    const edgeLabels = svg.selectAll(".edge-label")
         .data(graphLinks)
         .enter()
         .append("text")
@@ -170,7 +301,7 @@ function renderGraph(graphNodes, graphLinks) {
         .style("fill", "#444")
         .text(d => d.transition || "");
 
-    // Create node groups with improved styling
+    // Create node groups
     const node = svg.selectAll(".node")
         .data(graphNodes)
         .enter()
@@ -181,22 +312,15 @@ function renderGraph(graphNodes, graphLinks) {
             .on("drag", dragged)
             .on("end", dragended));
 
-    // Add circles to nodes with improved styling
+    // Add circles to nodes
     node.append("circle")
         .attr("r", 10)
-        .style("fill", d => {
-            if (d.name === "$".repeat(d.name.length)) {
-                return "#2c3e50";
-            } else if (d.name.includes('$')) {
-                return d.name[0] !== '$' ? "url(#nodeGradient)" : "#95a5a6";
-            } else {
-                return "#e74c3c";
-            }
-        })
+        .attr("class", "node-circle")
+        .style("fill", d => d.name.includes('$') ? "#95a5a6" : "#e74c3c")
         .style("stroke", "#fff")
-        .style("stroke-width", "2px")
-        .style("filter", "drop-shadow(0 2px 2px rgba(0,0,0,0.1))");
+        .style("stroke-width", "2px");
 
+    // Add node labels
     // First append a background rectangle for the text
     node.append("rect")
         .attr("class", "label-background")
@@ -246,16 +370,13 @@ function renderGraph(graphNodes, graphLinks) {
     }
 
     simulation.on("tick", () => {
-        // Keep nodes within bounds
         graphNodes.forEach(d => {
             d.x = clamp(d.x, margin, width - margin);
             d.y = clamp(d.y, margin, height - margin);
         });
 
-        // Update node positions
         node.attr("transform", d => `translate(${d.x},${d.y})`);
-
-        // Update edge positions with curved paths
+        
         path.attr("d", d => {
             const dx = d.target.x - d.source.x;
             const dy = d.target.y - d.source.y;
@@ -263,50 +384,68 @@ function renderGraph(graphNodes, graphLinks) {
         });
     });
 
-    // Add CSS styles
-    const style = document.createElement('style');
-    style.textContent = `
-        .link {
-            stroke: #666;
-            stroke-width: 1.5px;
-        }
-        .link.auxiliary {
-            stroke-dasharray: 4,4;
-            stroke-opacity: 0.6;
-        }
-        .node circle {
-            fill-opacity: 1;
-            transition: all 0.3s ease;
-        }
-        .node:hover circle {
-            filter: brightness(1.1);
-        }
-        .node text {
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            pointer-events: none;
-        }
-        .edge-label {
-            font-family: Arial, sans-serif;
-            pointer-events: none;
-        }
-    `;
-    document.head.appendChild(style);
+    let animationTimeout;
+    function startAnimation() {
+        // Clear any existing animation
+        clearTimeout(animationTimeout);
+        
+        // Reset display
+        reconstructionDisplay.textContent = "Original string: " + originalString;
+        
+        // Reset visual states
+        d3.selectAll(".node-circle").style("fill", d => d.name.includes('$') ? "#95a5a6" : "#e74c3c");
+        d3.selectAll(".link").style("stroke", "#666").style("stroke-width", "1.5px");
+        
+        // Find path that matches original string
+        const eulerianPath = findPathToMatch(graphNodes, graphLinks, originalString, k);
+        animatePath(eulerianPath, node, path, reconstructionDisplay, k, originalString);
+    }
+
+    // Attach click handler to start button
+    startButton.onclick = startAnimation;
 }
+
+function animatePath(path, nodes, edges, display, k, originalString) {
+    let reconstructedString = originalString.substring(0, k - 1); // Start with the first k-1 characters
+    let currentIndex = 0;
+
+    display.innerHTML = `Original string: ${originalString}<br>Reconstructed: ${reconstructedString}`;
+
+    function animate() {
+        if (currentIndex >= path.length) {
+            // Final validation and padding removal
+            if (reconstructedString.endsWith('$')) {
+                reconstructedString = reconstructedString.slice(0, -1);
+            }
+            display.innerHTML = `Original string: ${originalString}<br>Reconstructed: ${reconstructedString}`;
+            return;
+        }
+
+        const step = path[currentIndex];
+
+        // Highlight current node
+        nodes.filter(n => n.name === step.from)
+            .select("circle")
+            .style("fill", "#2ecc71")
+            .style("filter", "brightness(1.2)");
+
+        // Highlight edge
+        edges.filter(e => e.source.name === step.from && e.target.name === step.to)
+            .style("stroke", "#2ecc71")
+            .style("stroke-width", "3px");
+
+        // Append the transition character
+        reconstructedString += step.transition;
+        display.innerHTML = `Original string: ${originalString}<br>Reconstructed: ${reconstructedString}`;
+
+        currentIndex++;
+        setTimeout(animate, 500);
+    }
+
+    animate();
+}
+
 
 function clamp(value, min, max) {
     return Math.max(min, Math.min(max, value));
 }
-
-// Add window resize handler
-window.addEventListener('resize', function() {
-    const viewer = document.getElementById('viewer');
-    if (viewer && viewer.querySelector('svg')) {
-        const width = Math.max(DEFAULT_WIDTH, viewer.clientWidth);
-        const height = Math.max(DEFAULT_HEIGHT, viewer.clientHeight);
-        d3.select("#graph svg")
-            .attr("width", width)
-            .attr("height", height)
-            .attr("viewBox", [0, 0, width, height]);
-    }
-});

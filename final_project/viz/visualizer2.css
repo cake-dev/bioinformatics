@@ -1,0 +1,29 @@
+.link {
+    fill: none;
+    stroke: #666;
+    stroke-width: 1.5px;
+    transition: stroke 0.3s ease, stroke-width 0.3s ease;
+  }
+  
+  .link.auxiliary {
+    stroke-dasharray: 4,4;
+    stroke-opacity: 0.6;
+  }
+  
+  .node circle {
+    stroke: #fff;
+    stroke-width: 2px;
+    transition: fill 0.3s ease, filter 0.3s ease;
+  }
+  
+  .node text {
+    font: 12px sans-serif;
+    pointer-events: none;
+    text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+  }
+  
+  #reconstruction-display {
+    font-family: 'Courier New', monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
