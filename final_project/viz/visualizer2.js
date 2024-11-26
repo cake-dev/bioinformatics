@@ -417,7 +417,7 @@ function animatePath(path, nodes, edges, display, k, originalString) {
             if (reconstructedString.endsWith('$')) {
                 reconstructedString = reconstructedString.slice(0, -1);
             }
-            display.innerHTML = `Original string: ${originalString}<br>Reconstructed: ${reconstructedString}`;
+            display.innerHTML = `Original string: ${originalString}<br>Reconstructed:&nbsp&nbsp&nbsp${reconstructedString}`;
             return;
         }
 
