@@ -436,7 +436,7 @@ function animatePath(path, nodes, edges, display, k, originalString) {
 
         // Append the transition character
         reconstructedString += step.transition;
-        display.innerHTML = `Original string: ${originalString}<br>Reconstructed: ${reconstructedString}`;
+        display.innerHTML = `Original string: ${originalString}<br>Reconstructed:&nbsp&nbsp&nbsp${reconstructedString}`;
 
         currentIndex++;
         setTimeout(animate, 500);
