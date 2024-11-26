@@ -212,21 +212,27 @@ function renderGraph(graphNodes, graphLinks) {
         .attr("y", ".31em")
         .text(d => d.name);
 
-    function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
+    // Create a drag handler and append it to the node object instead
+    var drag_handler = d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended);
+    drag_handler(node);
+
+    function dragstarted(d) {
+        if (!d3.event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
         d.fy = d.y;
     }
 
-    function dragged(event, d) {
-        d.fx = clamp(event.x, margin, width - margin);
-        d.fy = clamp(event.y, margin, height - margin);
-        simulation.alpha(1).restart();
+    function dragged(d) {
+        d.fx = d3.event.x;
+        d.fy = d3.event.y;
     }
 
-    function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null; // Release fixed position
+    function dragended(d) {
+        if (!d3.event.active) simulation.alphaTarget(0);
+        d.fx = null;
         d.fy = null;
     }
 
